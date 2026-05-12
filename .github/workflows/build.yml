@@ -44,42 +44,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CMake
-        run: |
-          choco install cmake -y
-          refreshenv
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg
 
-      - name: Download SDL2
-        shell: powershell
+      - name: Install SDL2 dependencies via vcpkg
+        env:
+          VCPKG_BINARY_SOURCES: clear
         run: |
-          # Download SDL2 development library
-          $SDL2_URL = "https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-VC.zip"
-          Invoke-WebRequest -Uri $SDL2_URL -OutFile SDL2-devel.zip
-          Expand-Archive -Path SDL2-devel.zip -DestinationPath .
-          
-          # Download SDL2_gfx
-          $SDL2GFX_URL = "https://github.com/libsdl-org/SDL2_gfx/releases/download/release-1.0.4/SDL2_gfx-devel-1.0.4-VC.zip"
-          if ((Invoke-WebRequest -Uri $SDL2GFX_URL -OutFile SDL2_gfx-devel.zip -PassThru).StatusCode -eq 200) {
-            Expand-Archive -Path SDL2_gfx-devel.zip -DestinationPath .
-          }
-
-      - name: Setup SDL2 environment
-        shell: powershell
-        run: |
-          $SDL2_DIR = Get-ChildItem -Path . -Filter "SDL2-*" -Directory | Select-Object -First 1
-          echo "SDL2_DIR=$($SDL2_DIR.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "SDL2_LIBS=$($SDL2_DIR.FullName)/lib/x64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "SDL2_INCLUDE=$($SDL2_DIR.FullName)/include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          ${{ runner.workspace }}\vcpkg\vcpkg.exe install sdl2:x64-windows sdl2-gfx:x64-windows
 
       - name: Configure CMake
-        shell: powershell
-        run: |
-          $SDL2_DIR = Get-ChildItem -Path . -Filter "SDL2-*" -Directory | Select-Object -First 1
-          $SDL2_LIBS = "$($SDL2_DIR.FullName)\lib\x64"
-          $SDL2_INCLUDE = "$($SDL2_DIR.FullName)\include"
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022" -A x64 `
-            -DSDL2_INCLUDE_DIR="$SDL2_INCLUDE" `
-            -DSDL2_LIBRARY="$SDL2_LIBS\SDL2.lib"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64
 
       - name: Build
         run: cmake --build build --config Release
