@@ -44,19 +44,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgDirectory: ${{ runner.workspace }}/vcpkg
-
       - name: Install SDL2 dependencies via vcpkg
-        env:
-          VCPKG_BINARY_SOURCES: clear
         run: |
-          ${{ runner.workspace }}\vcpkg\vcpkg.exe install sdl2:x64-windows sdl2-gfx:x64-windows
+          vcpkg install sdl2:x64-windows sdl2-gfx:x64-windows
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64
 
       - name: Build
         run: cmake --build build --config Release
