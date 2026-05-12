@@ -32,17 +32,25 @@ file(GLOB_RECURSE SOURCES
 )
 
 # Recherche de SDL2
-find_package(SDL2 CONFIG QUIET)
-if(NOT SDL2_FOUND)
-    # Fallback si SDL2 n'a pas de CMake config
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+# Support pour passer SDL2_INCLUDE_DIR et SDL2_LIBRARY comme variables CMake
+if(DEFINED SDL2_INCLUDE_DIR AND DEFINED SDL2_LIBRARY)
+    message(STATUS "Using SDL2 from manual CMake variables")
+    set(SDL2_FOUND TRUE)
+    set(SDL2_INCLUDE_DIRS "${SDL2_INCLUDE_DIR}")
+    set(SDL2_LIBRARIES "${SDL2_LIBRARY}")
+else()
+    find_package(SDL2 CONFIG QUIET)
+    if(NOT SDL2_FOUND)
+        # Fallback si SDL2 n'a pas de CMake config
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+        endif()
     endif()
 endif()
 
 if(NOT SDL2_FOUND)
-    message(FATAL_ERROR "SDL2 not found. Please install SDL2 development libraries.")
+    message(FATAL_ERROR "SDL2 not found. Please install SDL2 development libraries or pass SDL2_INCLUDE_DIR and SDL2_LIBRARY variables.")
 endif()
 
 # Création de l'exécutable
@@ -59,18 +67,33 @@ else()
 endif()
 
 # Liaison avec SDL2_gfx et dépendances
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2_GFX IMPORTED_TARGET QUIET SDL2_gfx)
+find_package(PkgConfig QUIET)
 
-if(NOT SDL2_GFX_FOUND)
-    message(FATAL_ERROR "SDL2_gfx library not found. Please install libSDL2-gfx development package.\n"
-                        "On Ubuntu/Debian: sudo apt-get install libsdl2-gfx-dev\n"
-                        "On Fedora/RHEL: sudo dnf install SDL2_gfx-devel\n"
-                        "On macOS: brew install sdl2_gfx")
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2_GFX IMPORTED_TARGET QUIET SDL2_gfx)
+    if(SDL2_GFX_FOUND)
+        target_link_libraries(ProjetColeil PRIVATE PkgConfig::SDL2_GFX)
+        message(STATUS "SDL2_gfx found via pkg-config")
+    endif()
 endif()
 
-# Lier SDL2_gfx via pkg-config
-target_link_libraries(ProjetColeil PRIVATE PkgConfig::SDL2_GFX)
+if(NOT SDL2_GFX_FOUND)
+    # Essayer de trouver SDL2_gfx.lib/h directement (Windows avec binaires pré-compilés)
+    find_library(SDL2_GFX_LIB NAMES SDL2_gfx)
+    find_path(SDL2_GFX_INCLUDE SDL2_gfxPrimitives.h)
+    
+    if(SDL2_GFX_LIB AND SDL2_GFX_INCLUDE)
+        target_link_libraries(ProjetColeil PRIVATE ${SDL2_GFX_LIB})
+        target_include_directories(ProjetColeil PRIVATE ${SDL2_GFX_INCLUDE})
+        message(STATUS "SDL2_gfx found at ${SDL2_GFX_LIB}")
+    else()
+        message(FATAL_ERROR "SDL2_gfx library not found. Please install libSDL2-gfx development package.\n"
+                            "On Ubuntu/Debian: sudo apt-get install libsdl2-gfx-dev\n"
+                            "On Fedora/RHEL: sudo dnf install SDL2_gfx-devel\n"
+                            "On macOS: brew install sdl2_gfx\n"
+                            "On Windows: Download from https://github.com/libsdl-org/SDL2_gfx/releases")
+    endif()
+endif()
 
 # Liaison avec les bibliothèques mathématiques sur Unix-like systems
 if(UNIX AND NOT APPLE)
