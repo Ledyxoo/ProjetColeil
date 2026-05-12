@@ -1,0 +1,104 @@
+name: Build Projet Coleil
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libsdl2-dev libsdl2-gfx-dev
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Prepare Artifact
+        run: |
+          mkdir -p ProjetColeil-Linux
+          cp build/ProjetColeil ProjetColeil-Linux/
+          cp -r Assets ProjetColeil-Linux/
+          tar -czvf ProjetColeil-Linux.tar.gz ProjetColeil-Linux/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjetColeil-Linux
+          path: ProjetColeil-Linux.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          choco install cmake -y
+          choco install vcpkg -y
+          vcpkg integrate install
+          vcpkg install sdl2:x64-windows sdl2-gfx:x64-windows
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="C:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Prepare Artifact
+        shell: pwsh
+        run: |
+          New-Item -Path "ProjetColeil-Windows" -ItemType Directory -Force | Out-Null
+          Copy-Item -Path "build/Release/ProjetColeil.exe" -Destination "ProjetColeil-Windows/"
+          Copy-Item -Path "Assets" -Destination "ProjetColeil-Windows/" -Recurse -Force
+          Compress-Archive -Path "ProjetColeil-Windows/*" -DestinationPath "ProjetColeil-Windows.zip" -Force
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjetColeil-Windows
+          path: ProjetColeil-Windows.zip
+
+  release:
+    name: Create Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ProjetColeil-Linux
+          path: ./linux-artifacts
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ProjetColeil-Windows
+          path: ./windows-artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./linux-artifacts/ProjetColeil-Linux.tar.gz
+            ./windows-artifacts/ProjetColeil-Windows.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

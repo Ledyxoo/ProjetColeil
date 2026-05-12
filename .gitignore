@@ -1,0 +1,16 @@
+# Build
+build/
+bin/
+obj/
+
+# IDE
+.vs/
+.vscode/
+*.sln
+*.vcxproj
+*.user
+*.filters
+
+# OS
+.DS_Store
+Thumbs.db
