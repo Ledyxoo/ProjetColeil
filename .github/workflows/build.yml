@@ -44,9 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SDL2 dependencies via vcpkg
-        run: |
-          vcpkg install sdl2:x64-windows sdl2-gfx:x64-windows
+      - name: Install dependencies via vcpkg
+        run: vcpkg install --triplet x64-windows
 
       - name: Configure CMake
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -G "Visual Studio 17 2022" -A x64
