@@ -88,8 +88,16 @@ else()
 
     # 3) Fallback: find library/header paths (useful for manual binaries on Windows)
     if(NOT SDL2_GFX_FOUND)
-        find_library(SDL2_GFX_LIB NAMES SDL2_gfx SDL2_gfx-1 SDL2_gfx-3.0)
-        find_path(SDL2_GFX_INCLUDE NAMES SDL2_gfxPrimitives.h)
+        if(DEFINED ENV{VCPKG_INSTALLATION_ROOT})
+            set(VCPKG_INSTALLED_DIR "$ENV{VCPKG_INSTALLATION_ROOT}/installed/x64-windows")
+            find_library(SDL2_GFX_LIB NAMES SDL2_gfx SDL2_gfx-1 SDL2_gfx-3.0
+                         PATHS "${VCPKG_INSTALLED_DIR}/lib" NO_DEFAULT_PATH)
+            find_path(SDL2_GFX_INCLUDE NAMES SDL2_gfxPrimitives.h
+                      PATHS "${VCPKG_INSTALLED_DIR}/include" NO_DEFAULT_PATH)
+        else()
+            find_library(SDL2_GFX_LIB NAMES SDL2_gfx SDL2_gfx-1 SDL2_gfx-3.0)
+            find_path(SDL2_GFX_INCLUDE NAMES SDL2_gfxPrimitives.h)
+        endif()
         if(SDL2_GFX_LIB AND SDL2_GFX_INCLUDE)
             target_link_libraries(ProjetColeil PRIVATE ${SDL2_GFX_LIB})
             target_include_directories(ProjetColeil PRIVATE ${SDL2_GFX_INCLUDE})
